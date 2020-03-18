@@ -1,0 +1,133 @@
+##############################################################################
+# V-Silicon functions for conjure-build
+##############################################################################
+
+#-----------------------------------------------------------------------------
+# environment set-up
+#-----------------------------------------------------------------------------
+VS_COMPLETE_IMG_DIR=$VIZIO_APPLETV_IMG_WORKDIR/basic-egl
+VS_INSTALL_DIR_DRAGONFLY=./sx7a_dragonfly
+VS_INSTALL_DIR_LEO=./sx7b_leo
+VS_APP_NAME=appletv
+
+#-----------------------------------------------------------------------------
+# functions expected by build.sh
+#-----------------------------------------------------------------------------
+build_install_img()
+{
+  # Note: this is based on V-Silicon's CreateAppImage.sh
+  img_ver=$1
+  dest_dir=$2
+
+  echo "RAMYA Iam in build_install_img img_ver = $img_ver dest_dir = $dest_dir" 
+  build_base_img
+
+  # add NOTRC file for non-RC builds
+  test "$IS_RC_BUILD" != "1" && touch NOTRC
+
+  # build squashfs
+  vs_squashfs_file=$VIZIO_APPLETV_IMG_WORKDIR/vizioappletv.squashfs
+  build_squashfs $vs_squashfs_file
+
+  test "$TARGET" = "vs-sx7b" && img_arg=leo
+  if [ "$TARGET" = "vs-sx7a" ]; then
+    img_type=dragonfly
+    img=$dest_dir/$VS_INSTALL_DIR_DRAGONFLY/$VS_APP_NAME.$img_ver.img
+  else
+    img_type=leo
+    img=$dest_dir/$VS_INSTALL_DIR_LEO/$VS_APP_NAME.$img_ver.img
+  fi
+
+  vs_img_header=$VIZIO_APPLETV_IMG_WORKDIR/img_header
+  build_img_header $img_ver $img_type $vs_squashfs_file $vs_img_header
+  mkdir -p `dirname $img`
+  build_img_file $vs_img_header $vs_squashfs_file $img
+  export FINAL_IMG_FILE=`realpath $img`
+}
+
+build_dev_tarball()
+{
+  dest_dir=$1
+  mkdir -p $dest_dir
+
+  build_base_img
+
+  # create tarball
+  cd $VS_COMPLETE_IMG_DIR || die 2 "Directory '$VS_COMPLETE_IMG_DIR' doesn't exist"
+  tar czf $dest_dir/conjure_dev.tgz *
+}
+
+#-----------------------------------------------------------------------------
+# V-Silicon functions
+#-----------------------------------------------------------------------------
+
+build_base_img()
+{
+  rm -rf $VS_COMPLETE_IMG_DIR
+  mkdir -p $VS_COMPLETE_IMG_DIR
+  cd $VS_COMPLETE_IMG_DIR
+
+  # copy files and directories from chromium build
+  #for f in $APPLETV_FILES $APPLETV_PAK_DIRS
+  if false; then
+  for f in $APPLETV_FILES
+  do
+    cp -f $VIZIO_APPLETV_BASICEGL_ROOT/$f .
+  done
+fi
+  cp -f "$VIZIO_APPLETV_BASICEGL_ROOT/"* .
+
+  chmod -R 755 *
+}
+
+build_squashfs()
+{
+  fs_file=$1
+  rm -f fs_file
+  cd $VS_COMPLETE_IMG_DIR
+  mksquashfs . $fs_file -all-root -noappend || die 2 "Can't create squashfs"
+}
+
+build_img_header()
+{
+  app_ver=$1
+  app_product=$2
+  squashfs_file=$3
+  header_file=$4
+
+#ramya
+if false;then
+  # calcuate DCPSYS_SHA1
+  pushd "$VS_SDK_DIR/Application/Inc" > /dev/null
+  dcpsys_sha1=$(find Amapi/ Tplfapi/ Dslapi/ -type f \
+                 | sort -df \
+                 | xargs sha1sum \
+                 | sha1sum - \
+                 | cut -d" " -f1) || die 2 "Error generating DCPSYS_SHA1"
+  popd > /dev/null
+fi
+#end ramya
+
+  # calcuate IMG SHA1
+  img_sha1=$(sha1sum $squashfs_file | cut -d" " -f1)
+
+  # create header file
+  echo "APP_NAME=$VS_APP_NAME">     $header_file
+  echo "APP_VER=$app_ver">>         $header_file
+  echo "PRODUCT=$app_product">>     $header_file
+  echo "DCPSYS_SHA1=$dcpsys_sha1">> $header_file
+  echo "DEP_APPS=">>                $header_file
+  echo "BUILD_INFO=">>              $header_file
+  echo "BUILD_BASE=">>              $header_file
+  echo "IMG_SHA1=$img_sha1">>       $header_file
+}
+
+build_img_file()
+{
+  header_file=$1
+  squashfs_file=$2
+  img_file=$3
+
+  dd if=$header_file of=$img_file >/dev/null 2>&1
+  dd if=$squashfs_file of=$img_file bs=1k seek=4 >/dev/null 2>&1
+}
