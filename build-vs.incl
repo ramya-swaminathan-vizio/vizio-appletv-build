@@ -95,19 +95,6 @@ build_img_header()
   squashfs_file=$3
   header_file=$4
 
-#ramya
-if false;then
-  # calcuate DCPSYS_SHA1
-  pushd "$VS_SDK_DIR/Application/Inc" > /dev/null
-  dcpsys_sha1=$(find Amapi/ Tplfapi/ Dslapi/ -type f \
-                 | sort -df \
-                 | xargs sha1sum \
-                 | sha1sum - \
-                 | cut -d" " -f1) || die 2 "Error generating DCPSYS_SHA1"
-  popd > /dev/null
-fi
-#end ramya
-
   # calcuate IMG SHA1
   img_sha1=$(sha1sum $squashfs_file | cut -d" " -f1)
 

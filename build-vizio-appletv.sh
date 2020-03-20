@@ -15,8 +15,8 @@
 #   <basedir>/ ........................ pre-exists
 #   <basedir>/build/ .................. pre-exists, VS build scripts
 #   <basedir>/vizio-appletv-build/ .......... pre-exists, conjure build scripts
-#   <basedir>/src/ .................... pre-exists, chromium source
-#   <basedir>/sx7_sdk/ ................ pre-exists, VS SDK
+#   <basedir>/vizio_appletv_basic_egl/ .................... pre-exists, appletv source
+#   <basedir>/sx7_sdk/ ................ pre-exists, VS SDK currently not needed
 #
 #   <basedir>/out/vizio-appletv-build/ ........... created, vizio-appletv build output
 #   <basedir>/vizio_appletv/install/dev/ ............ created, dev image files
